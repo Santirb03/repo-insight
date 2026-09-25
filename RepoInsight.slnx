@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RepoInsight.Analysis/RepoInsight.Analysis.csproj" />
+    <Project Path="src/RepoInsight.Api/RepoInsight.Api.csproj" />
+    <Project Path="src/RepoInsight.Application/RepoInsight.Application.csproj" />
+    <Project Path="src/RepoInsight.Domain/RepoInsight.Domain.csproj" />
+    <Project Path="src/RepoInsight.Infrastructure/RepoInsight.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RepoInsight.UnitTests/RepoInsight.UnitTests.csproj" />
+  </Folder>
+</Solution>
