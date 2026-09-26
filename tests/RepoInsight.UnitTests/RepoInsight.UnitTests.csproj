@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\RepoInsight.Analysis\RepoInsight.Analysis.csproj" />
+    <ProjectReference Include="..\..\src\RepoInsight.Api\RepoInsight.Api.csproj" />
   </ItemGroup>
 
 </Project>
