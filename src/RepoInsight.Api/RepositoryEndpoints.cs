@@ -1,13 +1,14 @@
 using RepoInsight.Analysis;
-using RepoInsight.Api.Services;
 using RepoInsight.Analysis.Mermaid;
+using RepoInsight.Api.Services;
+using RepoInsight.Application;
 
 namespace RepoInsight.Api;
 
 public static class RepositoryEndpoints
 {
     public static IServiceCollection AddRepositoryScanning(
-    this IServiceCollection services)
+        this IServiceCollection services)
     {
         services.AddScoped<IRepositoryScanner, RepositoryScanner>();
 
@@ -20,44 +21,133 @@ public static class RepositoryEndpoints
 
         services.AddScoped<RepositoryZipService>();
 
+        services.AddScoped<IRepositoryAnalysisService, RepositoryAnalysisService>();
+
         return services;
     }
 
-    public static IEndpointRouteBuilder MapRepositoryEndpoints(this IEndpointRouteBuilder endpoints)
+    public static IEndpointRouteBuilder MapRepositoryEndpoints(
+        this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapPost("/api/repositories/scan", ScanAsync);
+        endpoints.MapPost("/api/repositories/analyze", AnalyzeAsync);
+
         return endpoints;
     }
 
     private static async Task<IResult> ScanAsync(
-        HttpRequest request, RepositoryZipService zipService, CancellationToken cancellationToken)
+        HttpRequest request,
+        RepositoryZipService zipService,
+        CancellationToken cancellationToken)
     {
         if (!request.HasFormContentType ||
-            !request.ContentType!.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase))
+            !request.ContentType!.StartsWith(
+                "multipart/form-data",
+                StringComparison.OrdinalIgnoreCase))
         {
-            return Results.BadRequest(new { error = "Upload one .zip file using multipart/form-data." });
+            return Results.BadRequest(new
+            {
+                error = "Upload one .zip file using multipart/form-data."
+            });
         }
 
         try
         {
             var form = await request.ReadFormAsync(cancellationToken);
+
             if (form.Files.Count != 1)
             {
-                return Results.BadRequest(new { error = "Exactly one .zip file is required." });
+                return Results.BadRequest(new
+                {
+                    error = "Exactly one .zip file is required."
+                });
             }
 
             var file = form.Files[0];
-            if (file.Length == 0 || !Path.GetExtension(file.FileName).Equals(".zip", StringComparison.OrdinalIgnoreCase))
+
+            if (file.Length == 0 ||
+                !Path.GetExtension(file.FileName)
+                    .Equals(".zip", StringComparison.OrdinalIgnoreCase))
             {
-                return Results.BadRequest(new { error = "A non-empty .zip file is required." });
+                return Results.BadRequest(new
+                {
+                    error = "A non-empty .zip file is required."
+                });
             }
 
             await using var stream = file.OpenReadStream();
-            return Results.Ok(await zipService.ScanAsync(stream, cancellationToken));
+
+            var result = await zipService.ScanAsync(
+                stream,
+                cancellationToken);
+
+            return Results.Ok(result);
         }
         catch (InvalidDataException)
         {
-            return Results.BadRequest(new { error = "The ZIP archive or multipart form is invalid or contains an unsafe entry." });
+            return Results.BadRequest(new
+            {
+                error =
+                    "The ZIP archive or multipart form is invalid or contains an unsafe entry."
+            });
+        }
+    }
+
+    private static async Task<IResult> AnalyzeAsync(
+        HttpRequest request,
+        IRepositoryAnalysisService analysisService,
+        CancellationToken cancellationToken)
+    {
+        if (!request.HasFormContentType ||
+            !request.ContentType!.StartsWith(
+                "multipart/form-data",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.BadRequest(new
+            {
+                error = "Upload one .zip file using multipart/form-data."
+            });
+        }
+
+        try
+        {
+            var form = await request.ReadFormAsync(cancellationToken);
+
+            if (form.Files.Count != 1)
+            {
+                return Results.BadRequest(new
+                {
+                    error = "Exactly one .zip file is required."
+                });
+            }
+
+            var file = form.Files[0];
+
+            if (file.Length == 0 ||
+                !Path.GetExtension(file.FileName)
+                    .Equals(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                return Results.BadRequest(new
+                {
+                    error = "A non-empty .zip file is required."
+                });
+            }
+
+            await using var stream = file.OpenReadStream();
+
+            var result = await analysisService.AnalyzeAsync(
+                stream,
+                cancellationToken);
+
+            return Results.Ok(result);
+        }
+        catch (InvalidDataException)
+        {
+            return Results.BadRequest(new
+            {
+                error =
+                    "The ZIP archive or multipart form is invalid or contains an unsafe entry."
+            });
         }
     }
 }
