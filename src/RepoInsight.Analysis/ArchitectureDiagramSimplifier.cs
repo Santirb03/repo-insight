@@ -33,15 +33,18 @@ public sealed class ArchitectureDiagramSimplifier
             .Where(edge =>
                 edge.RelationshipType is
                     ArchitectureRelationshipType.Injects or
+                    ArchitectureRelationshipType.Implements or
                     ArchitectureRelationshipType.UsesDatabase or
                     ArchitectureRelationshipType.UsesExternalService)
             .GroupBy(edge => new
             {
                 edge.SourceNodeId,
-                edge.TargetNodeId,
-                edge.RelationshipType
+                edge.TargetNodeId
             })
-            .Select(group => group.First())
+            .Select(group => group
+                .OrderBy(edge => Priority(edge.RelationshipType))
+                .ThenBy(edge => edge.RelationshipType)
+                .First())
             .OrderBy(edge => edge.SourceNodeId, StringComparer.Ordinal)
             .ThenBy(edge => edge.TargetNodeId, StringComparer.Ordinal)
             .ThenBy(edge => edge.RelationshipType)
@@ -50,6 +53,21 @@ public sealed class ArchitectureDiagramSimplifier
         return new ArchitectureGraph(nodes)
         {
             Edges = edges
+        };
+    }
+
+    private static int Priority(
+        ArchitectureRelationshipType relationshipType)
+    {
+        return relationshipType switch
+        {
+            ArchitectureRelationshipType.UsesExternalService => 0,
+            ArchitectureRelationshipType.UsesDatabase => 1,
+            ArchitectureRelationshipType.Implements => 2,
+            ArchitectureRelationshipType.Injects => 3,
+            ArchitectureRelationshipType.DependsOn => 4,
+            ArchitectureRelationshipType.Imports => 5,
+            _ => int.MaxValue
         };
     }
 }
