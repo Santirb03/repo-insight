@@ -24,6 +24,9 @@ public static class RepositoryEndpoints
         services.AddScoped<IRepositoryAnalysisService, RepositoryAnalysisService>();
 
         services.AddScoped<ITechnologyDetector, TechnologyDetector>();
+
+        services.AddScoped<ArchitectureDiagramSimplifier>();
+
         return services;
     }
 
