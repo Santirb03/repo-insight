@@ -6,32 +6,70 @@ namespace RepoInsight.Api.Services;
 
 public sealed class RepositoryZipService(IRepositoryScanner scanner)
 {
-    public async Task<RepositoryScan> ScanAsync(Stream zipStream, CancellationToken cancellationToken = default)
+    public Task<RepositoryScan> ScanAsync(
+        Stream zipStream,
+        CancellationToken cancellationToken = default)
     {
-        var workingDirectory = Directory.CreateTempSubdirectory("RepoInsight-upload-");
+        return ProcessAsync(
+            zipStream,
+            (repositoryPath, _) =>
+                Task.FromResult(scanner.Scan(repositoryPath)),
+            cancellationToken);
+    }
+
+    public async Task<T> ProcessAsync<T>(
+        Stream zipStream,
+        Func<string, CancellationToken, Task<T>> processor,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(zipStream);
+        ArgumentNullException.ThrowIfNull(processor);
+
+        var workingDirectory =
+            Directory.CreateTempSubdirectory("RepoInsight-upload-");
+
         try
         {
             using var archive = OpenArchive(zipStream);
-            var root = workingDirectory.FullName + Path.DirectorySeparatorChar;
+
+            var root =
+                workingDirectory.FullName +
+                Path.DirectorySeparatorChar;
+
             foreach (var entry in archive.Entries)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var destination = GetDestination(root, entry);
-                if (entry.FullName.EndsWith('/') || entry.FullName.EndsWith('\\'))
+
+                var destination =
+                    GetDestination(root, entry);
+
+                if (entry.FullName.EndsWith('/') ||
+                    entry.FullName.EndsWith('\\'))
                 {
                     Directory.CreateDirectory(destination);
                     continue;
                 }
 
-                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                Directory.CreateDirectory(
+                    Path.GetDirectoryName(destination)!);
+
                 using var source = entry.Open();
-                // Never restore archive attributes or create links; every output is a new regular file.
-                await using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write);
-                await source.CopyToAsync(output, cancellationToken);
+
+                await using var output = new FileStream(
+                    destination,
+                    FileMode.CreateNew,
+                    FileAccess.Write);
+
+                await source.CopyToAsync(
+                    output,
+                    cancellationToken);
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            return scanner.Scan(workingDirectory.FullName);
+
+            return await processor(
+                workingDirectory.FullName,
+                cancellationToken);
         }
         finally
         {
@@ -43,41 +81,68 @@ public sealed class RepositoryZipService(IRepositoryScanner scanner)
     {
         try
         {
-            return new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
+            return new ZipArchive(
+                stream,
+                ZipArchiveMode.Read,
+                leaveOpen: true);
         }
         catch (ArgumentOutOfRangeException exception)
         {
-            // Multipart file streams reject out-of-bounds seeks while ZIP headers are read.
-            throw new InvalidDataException("Invalid ZIP archive offsets.", exception);
+            throw new InvalidDataException(
+                "Invalid ZIP archive offsets.",
+                exception);
         }
     }
 
-    private static string GetDestination(string root, ZipArchiveEntry entry)
+    private static string GetDestination(
+        string root,
+        ZipArchiveEntry entry)
     {
         var name = entry.FullName.Replace('\\', '/');
-        var unixType = (entry.ExternalAttributes >> 16) & 0xF000;
-        if (string.IsNullOrWhiteSpace(name) || name.StartsWith('/') || name.Contains(':') ||
-            name.Split('/').Any(segment => segment == ".." ||
-                (segment != "." && (segment.EndsWith('.') || segment.EndsWith(' ')))) || unixType == 0xA000 ||
-            (entry.ExternalAttributes & (int)FileAttributes.ReparsePoint) != 0)
+
+        var unixType =
+            (entry.ExternalAttributes >> 16) & 0xF000;
+
+        if (string.IsNullOrWhiteSpace(name) ||
+            name.StartsWith('/') ||
+            name.Contains(':') ||
+            name.Split('/').Any(segment =>
+                segment == ".." ||
+                (segment != "." &&
+                 (segment.EndsWith('.') ||
+                  segment.EndsWith(' ')))) ||
+            unixType == 0xA000 ||
+            (entry.ExternalAttributes &
+             (int)FileAttributes.ReparsePoint) != 0)
         {
-            throw new InvalidDataException("Unsafe ZIP entry.");
+            throw new InvalidDataException(
+                "Unsafe ZIP entry.");
         }
 
         string destination;
+
         try
         {
-            destination = Path.GetFullPath(Path.Combine(root, name));
+            destination =
+                Path.GetFullPath(
+                    Path.Combine(root, name));
         }
         catch (ArgumentException exception)
         {
-            throw new InvalidDataException("Invalid ZIP entry path.", exception);
+            throw new InvalidDataException(
+                "Invalid ZIP entry path.",
+                exception);
         }
 
-        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        var comparison =
+            OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
         if (!destination.StartsWith(root, comparison))
         {
-            throw new InvalidDataException("ZIP entry escapes the extraction directory.");
+            throw new InvalidDataException(
+                "ZIP entry escapes the extraction directory.");
         }
 
         return destination;

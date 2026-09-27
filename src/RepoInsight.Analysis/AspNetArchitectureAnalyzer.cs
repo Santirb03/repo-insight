@@ -15,6 +15,8 @@ namespace RepoInsight.Analysis;
 /// </summary>
 public sealed class AspNetArchitectureAnalyzer : IArchitectureAnalyzer
 {
+    public string TechnologyName => "ASP.NET Core";
+
     private const int MaximumSourceBytes = 1024 * 1024;
 
     public ArchitectureGraph Analyze(string repositoryPath, RepositoryScan scan)

@@ -1,14 +1,25 @@
 using RepoInsight.Analysis;
 using RepoInsight.Api.Services;
+using RepoInsight.Analysis.Mermaid;
 
 namespace RepoInsight.Api;
 
 public static class RepositoryEndpoints
 {
-    public static IServiceCollection AddRepositoryScanning(this IServiceCollection services)
+    public static IServiceCollection AddRepositoryScanning(
+    this IServiceCollection services)
     {
         services.AddScoped<IRepositoryScanner, RepositoryScanner>();
+
+        services.AddScoped<IArchitectureAnalyzer, NestJsArchitectureAnalyzer>();
+        services.AddScoped<IArchitectureAnalyzer, AspNetArchitectureAnalyzer>();
+
+        services.AddScoped<ArchitectureAnalyzerSelector>();
+
+        services.AddScoped<IMermaidDiagramRenderer, MermaidDiagramRenderer>();
+
         services.AddScoped<RepositoryZipService>();
+
         return services;
     }
 

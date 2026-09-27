@@ -14,6 +14,7 @@ namespace RepoInsight.Analysis;
 /// </summary>
 public sealed class NestJsArchitectureAnalyzer : IArchitectureAnalyzer
 {
+    public string TechnologyName => "NestJS";
     private const int MaximumSourceBytes = 1024 * 1024;
 
     public ArchitectureGraph Analyze(string repositoryPath, RepositoryScan scan)
