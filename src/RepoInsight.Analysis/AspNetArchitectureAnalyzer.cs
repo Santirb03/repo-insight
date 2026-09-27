@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml;
+using System.Xml.Linq;
 using RepoInsight.Domain;
 using static RepoInsight.Analysis.CSharpSourceReader;
 
@@ -29,6 +31,38 @@ public sealed class AspNetArchitectureAnalyzer : IArchitectureAnalyzer
             .GroupBy(DirectoryOf, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.Select(Path.GetFileNameWithoutExtension).ToArray(), StringComparer.Ordinal);
         var nodes = new Dictionary<string, ArchitectureNode>(StringComparer.Ordinal);
+        var sources = new Dictionary<string, Source>(StringComparer.Ordinal);
+        var projectReferences = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        var projectPaths = scan.Files.Select(file => file.RelativePath.Replace('\\', '/'))
+            .Where(path => path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)).Distinct(StringComparer.Ordinal).ToArray();
+        foreach (var projectPath in projectPaths)
+        {
+            // Multiple project files in one directory do not establish an unambiguous compilation scope.
+            if (projectPaths.Count(path => DirectoryOf(path) == DirectoryOf(projectPath)) != 1) continue;
+            var content = ReadSource(ValidatePath(root, projectPath));
+            if (content is null) continue;
+            try
+            {
+                using var input = new StringReader(content);
+                using var reader = XmlReader.Create(input, new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null });
+                var document = XDocument.Load(reader);
+                var references = new List<string>();
+                foreach (var element in document.Descendants().Where(element => element.Name.LocalName == "ProjectReference"))
+                {
+                    var include = (string?)element.Attribute("Include");
+                    if (include is null || include.IndexOfAny(['$', '*', '?', ';']) >= 0 ||
+                        element.AncestorsAndSelf().Any(parent => parent.Attribute("Condition") is not null)) continue;
+                    var absolute = Path.GetFullPath(Path.Combine(root, DirectoryOf(projectPath), include.Replace('\\', '/')));
+                    var relative = Path.GetRelativePath(root, absolute).Replace('\\', '/');
+                    if (projectPaths.Contains(relative, StringComparer.Ordinal) &&
+                        projectPaths.Count(path => DirectoryOf(path) == DirectoryOf(relative)) == 1)
+                        references.Add(ArchitectureRelationships.Scope(relative, projectPaths));
+                }
+                projectReferences[ArchitectureRelationships.Scope(projectPath, projectPaths)] = references;
+            }
+            catch (XmlException) { /* Invalid project metadata contributes no cross-project relationships. */ }
+            catch (ArgumentException) { /* Invalid reference paths are not resolved. */ }
+        }
         foreach (var file in scan.Files.OrderBy(file => file.RelativePath, StringComparer.Ordinal))
         {
             var path = file.RelativePath.Replace('\\', '/');
@@ -39,9 +73,11 @@ public sealed class AspNetArchitectureAnalyzer : IArchitectureAnalyzer
             var source = ReadSource(ValidatePath(root, path));
             if (source is null) continue;
             var parsed = CSharpSourceReader.Read(source);
+            sources[path] = parsed;
             var isProgram = Path.GetFileName(path).Equals("Program.cs", StringComparison.OrdinalIgnoreCase);
             foreach (var component in parsed.Classes)
             {
+                if (component.IsInterface) continue;
                 var type = Classify(path, component);
                 if (isProgram && component.Members.Any(IsMain)) type = ArchitectureNodeType.Bootstrap;
                 if (type is not null) Add(component.Name, component.Identity, type.Value);
@@ -56,8 +92,7 @@ public sealed class AspNetArchitectureAnalyzer : IArchitectureAnalyzer
                 nodes.TryAdd(id, new ArchitectureNode(id, name, type, path, FindProject(path, projects)));
             }
         }
-        return new ArchitectureGraph(Array.AsReadOnly(nodes.Values.OrderBy(node => node.RelativeSourcePath, StringComparer.Ordinal)
-            .ThenBy(node => node.DisplayName, StringComparer.Ordinal).ThenBy(node => node.Id, StringComparer.Ordinal).ToArray()));
+        return AspNetRelationships.Build(nodes.Values, sources, scan, projectReferences);
     }
 
     private static ArchitectureNodeType? Classify(string path, ClassDeclaration component)

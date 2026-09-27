@@ -6,8 +6,9 @@ internal static class CSharpSourceReader
 {
     internal sealed record ClassDeclaration(string Name, string Identity, string Attributes,
         IReadOnlyList<string> BaseTypes, IReadOnlyList<string> Members, bool HasInjectedConstructor,
-        bool IsStatic, bool IsAbstract, string Body);
-    internal sealed record Source(IReadOnlyList<ClassDeclaration> Classes, string TopLevelCode);
+        bool IsStatic, bool IsAbstract, string Body, bool IsInterface,
+        IReadOnlyList<string> ConstructorTypes, IReadOnlyList<string> DeclaredBaseTypes);
+    internal sealed record Source(IReadOnlyList<ClassDeclaration> Classes, string TopLevelCode, string Code);
 
     private const string Identifier = @"@?[\p{L}_][\p{L}\p{N}_]*";
     private static readonly Regex Declarations = new(
@@ -20,7 +21,7 @@ internal static class CSharpSourceReader
         var classes = new List<ClassDeclaration>();
         var topLevel = code.ToCharArray();
         ReadScope(code, 0, code.Length, "", classes, topLevel, 0);
-        return new Source(classes, new string(topLevel));
+        return new Source(classes, new string(topLevel), code);
     }
 
     private static void ReadScope(string code, int start, int end, string namespaceName,
@@ -78,7 +79,7 @@ internal static class CSharpSourceReader
             }
             var closeBody = Close(code, bodyStart, end);
             if (closeBody < 0) return;
-            if (kind == "class")
+            if (kind is "class" or "interface")
             {
                 var prefix = code[declarationStart..match.Index];
                 var header = code[headerStart..bodyStart];
@@ -92,7 +93,8 @@ internal static class CSharpSourceReader
                 var generic = Regex.Match(header, @"^\s*<([^>]+)>");
                 if (generic.Success) identity += "`" + (generic.Groups[1].Value.Count(character => character == ',') + 1);
                 classes.Add(new ClassDeclaration(name, identity, Attributes(prefix), BaseTypes(header), members,
-                    injected, Regex.IsMatch(prefix, @"\bstatic\b"), Regex.IsMatch(prefix, @"\babstract\b"), code[(bodyStart + 1)..closeBody]));
+                    injected, Regex.IsMatch(prefix, @"\bstatic\b"), Regex.IsMatch(prefix, @"\babstract\b"), code[(bodyStart + 1)..closeBody],
+                    kind == "interface", ConstructorTypes(name, primaryParameters, members), BaseTypes(header, qualified: true)));
             }
             Blank(topLevel, declarationStart, closeBody + 1);
             cursor = closeBody + 1;
@@ -155,7 +157,7 @@ internal static class CSharpSourceReader
         return members;
     }
 
-    private static IReadOnlyList<string> BaseTypes(string header)
+    private static IReadOnlyList<string> BaseTypes(string header, bool qualified = false)
     {
         var index = 0;
         while (index < header.Length)
@@ -184,7 +186,11 @@ internal static class CSharpSourceReader
             else if (index == baseText.Length || baseText[index] == ',')
             {
                 var type = Regex.Match(baseText[start..index], @"^\s*(?:global::)?(?<name>" + Identifier + @"(?:\s*\.\s*" + Identifier + @")*)");
-                if (type.Success) result.Add(Regex.Replace(type.Groups["name"].Value, @"\s+", "").Split('.').Last().TrimStart('@'));
+                if (type.Success && (!qualified || !baseText[start..index].Contains('<')))
+                {
+                    var typeName = Regex.Replace(type.Groups["name"].Value, @"\s+", "");
+                    result.Add(qualified ? typeName : typeName.Split('.').Last().TrimStart('@'));
+                }
                 start = index + 1;
             }
         }
@@ -201,6 +207,22 @@ internal static class CSharpSourceReader
             while (start < header.Length && char.IsWhiteSpace(header[start])) start++;
         }
         return start < header.Length && header[start] == '(' ? Parameters(header[start..]) : "";
+    }
+
+    private static IReadOnlyList<string> ConstructorTypes(string name, string primary, IReadOnlyList<string> members)
+    {
+        var constructors = new List<string>();
+        if (!string.IsNullOrWhiteSpace(primary)) constructors.Add(primary);
+        foreach (var member in members)
+        {
+            var match = Regex.Match(member, @"^\s*public\s+" + Regex.Escape(name) + @"\s*\(");
+            if (match.Success) constructors.Add(Parameters(member[match.Index..]));
+        }
+        // Without semantic DI selection, multiple public constructors are ambiguous.
+        if (constructors.Count != 1) return [];
+        return constructors[0].Split(',').Select(parameter => Regex.Match(parameter,
+            @"^\s*(?<type>(?:global::)?[\w.]+)\??\s+@?\w+\s*$"))
+            .Where(match => match.Success).Select(match => match.Groups["type"].Value.Replace("global::", "")).ToArray();
     }
 
     private static string Parameters(string declaration)

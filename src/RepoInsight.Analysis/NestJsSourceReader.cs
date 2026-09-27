@@ -6,7 +6,7 @@ internal static class NestJsSourceReader
 {
     internal sealed record Decorator(string Name, IReadOnlyList<Token> Arguments);
     internal sealed record ComponentClass(string Name, IReadOnlyList<Decorator> Decorators,
-        IReadOnlyList<Token> Header, IReadOnlyList<Decorator> MemberDecorators);
+        IReadOnlyList<Token> Header, IReadOnlyList<Decorator> MemberDecorators, IReadOnlyList<Token> Body);
 
     internal static IReadOnlyList<ComponentClass> Read(string source)
     {
@@ -46,7 +46,7 @@ internal static class NestJsSourceReader
                     // Only complete class bodies count as components.
                     if (end <= tokens.Count && end > index && Is(tokens[end - 1], "}"))
                         classes.Add(new ComponentClass(name, decorators.ToArray(), tokens.Skip(headerStart).Take(index - headerStart).ToArray(),
-                            ReadMemberDecorators(tokens, index + 1, end - 1)));
+                            ReadMemberDecorators(tokens, index + 1, end - 1), tokens.Skip(index + 1).Take(end - index - 2).ToArray()));
                     index = end;
                 }
                 decorators.Clear();

@@ -26,6 +26,7 @@ public sealed class NestJsArchitectureAnalyzer : IArchitectureAnalyzer
             throw new ArgumentException("Repository must not be a link.", nameof(repositoryPath));
 
         var nodes = new Dictionary<string, ArchitectureNode>(StringComparer.Ordinal);
+        var sources = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var file in scan.Files.OrderBy(file => file.RelativePath, StringComparer.Ordinal))
         {
             var path = file.RelativePath.Replace('\\', '/');
@@ -36,6 +37,7 @@ public sealed class NestJsArchitectureAnalyzer : IArchitectureAnalyzer
             var absolute = ValidatePath(root, path);
             var source = ReadSource(absolute);
             if (source is null) continue;
+            sources[path] = source;
             foreach (var component in NestJsSourceReader.Read(source))
             {
                 var type = Classify(path, component);
@@ -50,7 +52,7 @@ public sealed class NestJsArchitectureAnalyzer : IArchitectureAnalyzer
             .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
         var grouped = nodes.Values.Select(node => node with { ModuleName = FindModule(node, modules) })
             .OrderBy(node => node.RelativeSourcePath, StringComparer.Ordinal).ThenBy(node => node.DisplayName, StringComparer.Ordinal).ToArray();
-        return new ArchitectureGraph(Array.AsReadOnly(grouped));
+        return NestJsRelationships.Build(grouped, sources, scan);
     }
 
     private static ArchitectureNodeType? Classify(string path, ComponentClass component)

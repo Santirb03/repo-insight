@@ -6,5 +6,6 @@ namespace RepoInsight.Domain;
 public enum ArchitectureNodeType
 {
     Controller, Service, Module, Guard, Strategy, Dto, DataAccessService, WebhookController,
-    Repository, DbContext, Middleware, HostedService, AuthenticationHandler, AuthorizationHandler, Bootstrap
+    Repository, DbContext, Middleware, HostedService, AuthenticationHandler, AuthorizationHandler, Bootstrap,
+    Interface, ExternalService
 }
