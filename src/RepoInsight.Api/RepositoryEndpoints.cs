@@ -23,6 +23,7 @@ public static class RepositoryEndpoints
 
         services.AddScoped<IRepositoryAnalysisService, RepositoryAnalysisService>();
 
+        services.AddScoped<ITechnologyDetector, TechnologyDetector>();
         return services;
     }
 
