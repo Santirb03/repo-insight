@@ -9,6 +9,7 @@ public sealed class ArchitectureDiagnosticsEngineTests
     public void Evaluate_CombinesFindingsFromAllRules()
     {
         var graph = new ArchitectureGraph([]);
+        var scan = new RepositoryScan([]);
 
         var rules = new IArchitectureDiagnosticRule[]
         {
@@ -31,9 +32,11 @@ public sealed class ArchitectureDiagnosticsEngineTests
                     ["node-2"]))
         };
 
-        var engine = new ArchitectureDiagnosticsEngine(rules);
+        var engine = new ArchitectureDiagnosticsEngine(
+            rules,
+            Array.Empty<IRepositoryDiagnosticRule>());
 
-        var findings = engine.Evaluate(graph);
+        var findings = engine.Evaluate(scan, graph);
 
         Assert.Equal(2, findings.Count);
     }
@@ -42,6 +45,7 @@ public sealed class ArchitectureDiagnosticsEngineTests
     public void Evaluate_OrdersBySeverity()
     {
         var graph = new ArchitectureGraph([]);
+        var scan = new RepositoryScan([]);
 
         var rules = new IArchitectureDiagnosticRule[]
         {
@@ -73,9 +77,11 @@ public sealed class ArchitectureDiagnosticsEngineTests
                     ["node"]))
         };
 
-        var engine = new ArchitectureDiagnosticsEngine(rules);
+        var engine = new ArchitectureDiagnosticsEngine(
+            rules,
+            Array.Empty<IRepositoryDiagnosticRule>());
 
-        var findings = engine.Evaluate(graph);
+        var findings = engine.Evaluate(scan, graph);
 
         Assert.Equal(
             DiagnosticSeverity.High,

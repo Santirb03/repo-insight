@@ -3,22 +3,33 @@ using RepoInsight.Domain;
 namespace RepoInsight.Analysis;
 
 public sealed class ArchitectureDiagnosticsEngine(
-    IEnumerable<IArchitectureDiagnosticRule> rules)
+    IEnumerable<IArchitectureDiagnosticRule> architectureRules,
+    IEnumerable<IRepositoryDiagnosticRule> repositoryRules)
 {
-    private readonly IReadOnlyList<IArchitectureDiagnosticRule> rules =
-        rules.ToArray();
+    private readonly IReadOnlyList<IArchitectureDiagnosticRule> architectureRules =
+        architectureRules.ToArray();
+
+    private readonly IReadOnlyList<IRepositoryDiagnosticRule> repositoryRules =
+        repositoryRules.ToArray();
 
     public IReadOnlyList<DiagnosticFinding> Evaluate(
+        RepositoryScan scan,
         ArchitectureGraph graph)
     {
+        ArgumentNullException.ThrowIfNull(scan);
         ArgumentNullException.ThrowIfNull(graph);
 
-        return rules
+        var findings = architectureRules
             .SelectMany(rule => rule.Evaluate(graph))
+            .Concat(
+                repositoryRules.SelectMany(
+                    rule => rule.Evaluate(scan, graph)))
             .OrderByDescending(finding => SeverityRank(finding.Severity))
             .ThenBy(finding => finding.Code, StringComparer.Ordinal)
             .ThenBy(finding => finding.Title, StringComparer.Ordinal)
             .ToArray();
+
+        return findings;
     }
 
     private static int SeverityRank(

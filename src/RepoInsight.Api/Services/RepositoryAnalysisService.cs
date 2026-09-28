@@ -47,7 +47,9 @@ public sealed class RepositoryAnalysisService(
                 // 5. Merge their nodes and edges
                 var architecture = MergeGraphs(graphs);
 
-                var diagnostics = diagnosticsEngine.Evaluate(architecture);
+                var diagnostics = diagnosticsEngine.Evaluate(
+                    scan,
+                    architecture);
 
                 // 6. Generate Mermaid
                 var diagramGraph =

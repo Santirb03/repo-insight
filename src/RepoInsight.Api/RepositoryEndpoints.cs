@@ -33,6 +33,8 @@ public static class RepositoryEndpoints
 
         services.AddScoped<IArchitectureDiagnosticRule, ExternalServiceUsageRule>();
 
+        services.AddScoped<IRepositoryDiagnosticRule, MissingComponentTestRule>();
+
         services.AddScoped<IArchitectureDiagnosticRule, OrphanComponentRule>();
 
         return services;
