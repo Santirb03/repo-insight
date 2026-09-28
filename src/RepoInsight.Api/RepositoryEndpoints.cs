@@ -31,6 +31,8 @@ public static class RepositoryEndpoints
 
         services.AddScoped<ArchitectureDiagramSimplifier>();
 
+        services.AddScoped<IArchitectureDiagnosticRule, ExternalServiceUsageRule>();
+
         services.AddScoped<IArchitectureDiagnosticRule, OrphanComponentRule>();
 
         return services;
