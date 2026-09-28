@@ -12,6 +12,7 @@ public sealed class RepositoryAnalysisService(
     ArchitectureAnalyzerSelector architectureAnalyzerSelector,
     ArchitectureDiagramSimplifier diagramSimplifier,
     ArchitectureDiagnosticsEngine diagnosticsEngine,
+    IRepositoryAnalysisNarrator narrator,
     IMermaidDiagramRenderer mermaidRenderer)
     : IRepositoryAnalysisService
 {
@@ -23,7 +24,7 @@ public sealed class RepositoryAnalysisService(
 
         return zipService.ProcessAsync(
             zipStream,
-            (repositoryPath, token) =>
+            async (repositoryPath, token) =>
             {
                 token.ThrowIfCancellationRequested();
 
@@ -32,39 +33,58 @@ public sealed class RepositoryAnalysisService(
 
                 // 2. Detect technologies
                 var technologies =
-                    technologyDetector.Detect(repositoryPath, scan);
+                    technologyDetector.Detect(
+                        repositoryPath,
+                        scan);
 
-                // 3. Select the architecture analyzers that apply
+                // 3. Select applicable architecture analyzers
                 var analyzers =
-                    architectureAnalyzerSelector.Select(technologies);
+                    architectureAnalyzerSelector.Select(
+                        technologies);
 
-                // 4. Run all applicable analyzers
+                // 4. Run architecture analyzers
                 var graphs = analyzers
                     .Select(analyzer =>
-                        analyzer.Analyze(repositoryPath, scan))
+                        analyzer.Analyze(
+                            repositoryPath,
+                            scan))
                     .ToArray();
 
-                // 5. Merge their nodes and edges
-                var architecture = MergeGraphs(graphs);
+                // 5. Merge architecture graphs
+                var architecture =
+                    MergeGraphs(graphs);
 
-                var diagnostics = diagnosticsEngine.Evaluate(
-                    scan,
-                    architecture);
+                // 6. Run deterministic diagnostics
+                var diagnostics =
+                    diagnosticsEngine.Evaluate(
+                        scan,
+                        architecture);
 
-                // 6. Generate Mermaid
+                // 7. Generate repository narrative
+                var narrative =
+                    await narrator.GenerateAsync(
+                        technologies,
+                        architecture,
+                        diagnostics,
+                        token);
+
+                // 8. Simplify graph for visualization
                 var diagramGraph =
-                    diagramSimplifier.Simplify(architecture);
+                    diagramSimplifier.Simplify(
+                        architecture);
 
+                // 9. Generate Mermaid diagram
                 var mermaid =
-                    mermaidRenderer.Render(diagramGraph);
+                    mermaidRenderer.Render(
+                        diagramGraph);
 
-                var result = new RepositoryAnalysisResult(
+                // 10. Build final analysis result
+                return new RepositoryAnalysisResult(
                     technologies,
                     architecture,
                     diagnostics,
+                    narrative,
                     mermaid);
-
-                return Task.FromResult(result);
             },
             cancellationToken);
     }
@@ -74,9 +94,13 @@ public sealed class RepositoryAnalysisService(
     {
         var nodes = graphs
             .SelectMany(graph => graph.Nodes)
-            .GroupBy(node => node.Id, StringComparer.Ordinal)
+            .GroupBy(
+                node => node.Id,
+                StringComparer.Ordinal)
             .Select(group => group.First())
-            .OrderBy(node => node.Id, StringComparer.Ordinal)
+            .OrderBy(
+                node => node.Id,
+                StringComparer.Ordinal)
             .ToArray();
 
         var edges = graphs
@@ -89,9 +113,14 @@ public sealed class RepositoryAnalysisService(
                     edge.RelationshipType
                 })
             .Select(group => group.First())
-            .OrderBy(edge => edge.SourceNodeId, StringComparer.Ordinal)
-            .ThenBy(edge => edge.TargetNodeId, StringComparer.Ordinal)
-            .ThenBy(edge => edge.RelationshipType)
+            .OrderBy(
+                edge => edge.SourceNodeId,
+                StringComparer.Ordinal)
+            .ThenBy(
+                edge => edge.TargetNodeId,
+                StringComparer.Ordinal)
+            .ThenBy(
+                edge => edge.RelationshipType)
             .ToArray();
 
         return new ArchitectureGraph(nodes)

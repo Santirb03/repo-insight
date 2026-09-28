@@ -2,6 +2,7 @@ using RepoInsight.Analysis;
 using RepoInsight.Analysis.Mermaid;
 using RepoInsight.Api.Services;
 using RepoInsight.Application;
+using RepoInsight.Infrastructure;
 
 namespace RepoInsight.Api;
 
@@ -36,6 +37,8 @@ public static class RepositoryEndpoints
         services.AddScoped<IRepositoryDiagnosticRule, MissingComponentTestRule>();
 
         services.AddScoped<IArchitectureDiagnosticRule, OrphanComponentRule>();
+
+        services.AddScoped<IRepositoryAnalysisNarrator, DeterministicRepositoryAnalysisNarrator>();
 
         return services;
     }
