@@ -13,12 +13,28 @@ public sealed class MermaidDiagramRenderer : IMermaidDiagramRenderer
 
         builder.AppendLine("flowchart LR");
 
-        foreach (var node in graph.Nodes.OrderBy(node => node.Id, StringComparer.Ordinal))
-        {
-            var safeId = ToMermaidId(node.Id);
-            var label = EscapeLabel(node.DisplayName);
+        var groupedNodes = graph.Nodes
+            .GroupBy(GetGroupName)
+            .OrderBy(group => group.Key, StringComparer.Ordinal);
 
-            builder.AppendLine($"    {safeId}[\"{label}\"]");
+        foreach (var group in groupedNodes)
+        {
+            var groupId = ToMermaidId("group_" + group.Key);
+
+            builder.AppendLine();
+            builder.AppendLine($"    subgraph {groupId}[\"{EscapeLabel(group.Key)}\"]");
+
+            foreach (var node in group.OrderBy(
+                         node => node.DisplayName,
+                         StringComparer.Ordinal))
+            {
+                var safeId = ToMermaidId(node.Id);
+                var label = EscapeLabel(node.DisplayName);
+
+                builder.AppendLine($"        {safeId}[\"{label}\"]");
+            }
+
+            builder.AppendLine("    end");
         }
 
         if (graph.Edges.Count > 0)
@@ -40,6 +56,67 @@ public sealed class MermaidDiagramRenderer : IMermaidDiagramRenderer
         }
 
         return builder.ToString().TrimEnd();
+    }
+
+    private static string GetGroupName(ArchitectureNode node)
+    {
+        if (node.NodeType == ArchitectureNodeType.ExternalService)
+        {
+            return "External Services";
+        }
+
+        if (node.NodeType == ArchitectureNodeType.DataAccessService)
+        {
+            return "Data";
+        }
+
+        if (!string.IsNullOrWhiteSpace(node.ModuleName))
+        {
+            return CleanModuleName(node.ModuleName);
+        }
+
+        return InferGroupFromPath(node.RelativeSourcePath);
+    }
+
+    private static string CleanModuleName(string moduleName)
+    {
+        return moduleName.EndsWith(
+            "Module",
+            StringComparison.OrdinalIgnoreCase)
+            ? moduleName[..^"Module".Length]
+            : moduleName;
+    }
+
+    private static string InferGroupFromPath(string path)
+    {
+        var normalized = path.Replace('\\', '/');
+
+        var srcIndex = normalized.IndexOf(
+            "/src/",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (srcIndex >= 0)
+        {
+            var afterSrc = normalized[(srcIndex + 5)..];
+            var separatorIndex = afterSrc.IndexOf('/');
+
+            if (separatorIndex > 0)
+            {
+                return ToDisplayName(afterSrc[..separatorIndex]);
+            }
+        }
+
+        return "Core";
+    }
+
+    private static string ToDisplayName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "Core";
+        }
+
+        return char.ToUpperInvariant(value[0]) + value[1..];
     }
 
     private static string RelationshipLabel(
