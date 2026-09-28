@@ -19,6 +19,10 @@ public static class RepositoryEndpoints
 
         services.AddScoped<IMermaidDiagramRenderer, MermaidDiagramRenderer>();
 
+        services.AddScoped<IArchitectureDiagnosticRule, ControllerDatabaseAccessRule>();
+        services.AddScoped<IArchitectureDiagnosticRule, TooManyDependenciesRule>();
+        services.AddScoped<ArchitectureDiagnosticsEngine>();
+
         services.AddScoped<RepositoryZipService>();
 
         services.AddScoped<IRepositoryAnalysisService, RepositoryAnalysisService>();

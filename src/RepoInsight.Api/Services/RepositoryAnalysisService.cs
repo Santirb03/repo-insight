@@ -11,6 +11,7 @@ public sealed class RepositoryAnalysisService(
     ITechnologyDetector technologyDetector,
     ArchitectureAnalyzerSelector architectureAnalyzerSelector,
     ArchitectureDiagramSimplifier diagramSimplifier,
+    ArchitectureDiagnosticsEngine diagnosticsEngine,
     IMermaidDiagramRenderer mermaidRenderer)
     : IRepositoryAnalysisService
 {
@@ -46,6 +47,8 @@ public sealed class RepositoryAnalysisService(
                 // 5. Merge their nodes and edges
                 var architecture = MergeGraphs(graphs);
 
+                var diagnostics = diagnosticsEngine.Evaluate(architecture);
+
                 // 6. Generate Mermaid
                 var diagramGraph =
                     diagramSimplifier.Simplify(architecture);
@@ -56,6 +59,7 @@ public sealed class RepositoryAnalysisService(
                 var result = new RepositoryAnalysisResult(
                     technologies,
                     architecture,
+                    diagnostics,
                     mermaid);
 
                 return Task.FromResult(result);
