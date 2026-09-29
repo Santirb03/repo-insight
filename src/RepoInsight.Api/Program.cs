@@ -3,7 +3,7 @@ using RepoInsight.Api;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
-builder.Services.AddRepositoryScanning();
+builder.Services.AddRepositoryScanning(builder.Configuration);
 
 var app = builder.Build();
 

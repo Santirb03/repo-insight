@@ -9,7 +9,7 @@ namespace RepoInsight.Api;
 public static class RepositoryEndpoints
 {
     public static IServiceCollection AddRepositoryScanning(
-        this IServiceCollection services)
+        this IServiceCollection services, IConfiguration? configuration = null)
     {
         services.AddScoped<IRepositoryScanner, RepositoryScanner>();
 
@@ -38,7 +38,24 @@ public static class RepositoryEndpoints
 
         services.AddScoped<IArchitectureDiagnosticRule, OrphanComponentRule>();
 
-        services.AddScoped<IRepositoryAnalysisNarrator, DeterministicRepositoryAnalysisNarrator>();
+        var section = configuration?.GetSection("AzureOpenAI");
+        var timeoutValue = section?["TimeoutSeconds"];
+        var options = new AzureOpenAINarratorOptions
+        {
+            Endpoint = section?["Endpoint"], ApiKey = section?["ApiKey"], Deployment = section?["Deployment"],
+            TimeoutSeconds = timeoutValue is null ? 20 : int.TryParse(timeoutValue, out var timeout) ? timeout : 0
+        };
+        services.AddScoped<DeterministicRepositoryAnalysisNarrator>();
+        if (options.IsValid())
+        {
+            services.AddSingleton(options);
+            services.AddSingleton<INarrativeCompletionClient, AzureOpenAINarrativeClient>();
+            services.AddScoped<IRepositoryAnalysisNarrator, AzureOpenAIRepositoryAnalysisNarrator>();
+        }
+        else
+        {
+            services.AddScoped<IRepositoryAnalysisNarrator>(provider => provider.GetRequiredService<DeterministicRepositoryAnalysisNarrator>());
+        }
 
         return services;
     }
