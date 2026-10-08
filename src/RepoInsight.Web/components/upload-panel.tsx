@@ -17,9 +17,13 @@ export function UploadPanel({
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   return (
-    <section className="upload-panel" aria-label="Upload repository">
+    <section
+      className="upload-panel"
+      aria-label="Subir repositorio"
+      aria-busy={busy}
+    >
       <div className="panel-heading">
-        <span className="eyebrow">START WITH YOUR SOURCE</span>
+        <span className="eyebrow">SUBE TU REPOSITORIO</span>
         <span className="tag">.zip</span>
       </div>
       <button
@@ -41,13 +45,13 @@ export function UploadPanel({
         <span className="upload-icon" aria-hidden="true">
           ↑
         </span>
-        <strong>{file ? file.name : "Drop your repository here"}</strong>
+        <strong>{file ? file.name : "Arrastra tu archivo ZIP aquí"}</strong>
         <span>
           {file
-            ? `${(file.size / 1024 / 1024).toFixed(2)} MiB · Click to replace`
-            : "or click to browse your files"}
+            ? `${(file.size / 1024 / 1024).toFixed(2)} MiB · Cambiar archivo`
+            : "o haz clic para elegir un archivo"}
         </span>
-        <small>ZIP archive · up to 25 MiB</small>
+        <small>Un archivo .zip · hasta 25 MiB</small>
       </button>
       <input
         ref={input}
@@ -55,7 +59,7 @@ export function UploadPanel({
         type="file"
         accept=".zip,application/zip"
         disabled={busy}
-        aria-label="Choose repository ZIP"
+        aria-label="Elegir archivo ZIP del repositorio"
         onChange={(e) => {
           onSelect(Array.from(e.target.files ?? []));
           e.target.value = "";
@@ -68,25 +72,25 @@ export function UploadPanel({
       >
         {busy ? (
           <>
-            <span className="spinner" /> Analyzing repository…
+            <span className="spinner" /> Analizando tu proyecto…
           </>
         ) : (
           <>
-            Analyze Repository <span aria-hidden="true">↗</span>
+            Analizar repositorio <span aria-hidden="true">→</span>
           </>
         )}
       </button>
       {busy && (
         <div className="loading-note" role="status">
-          Discovering technologies, mapping components, and preparing your
-          report.
+          Estamos examinando los archivos y preparando los resultados. Puedes
+          cancelar si necesitas cambiar de archivo.
           <button className="text-button" onClick={onCancel}>
-            Cancel analysis
+            Cancelar análisis
           </button>
         </div>
       )}
       <p className="upload-footnote">
-        Source files are analyzed, never executed.
+        Analizamos los archivos sin ejecutar el código de tu proyecto.
       </p>
     </section>
   );

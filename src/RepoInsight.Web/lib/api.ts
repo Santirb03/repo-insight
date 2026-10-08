@@ -3,11 +3,11 @@ export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 export function validateZip(
   file: Pick<File, "name" | "size"> | null,
 ): string | null {
-  if (!file) return "Choose a repository ZIP file first.";
-  if (!/\.zip$/i.test(file.name)) return "Only .zip files are supported.";
+  if (!file) return "Selecciona primero un archivo ZIP.";
+  if (!/\.zip$/i.test(file.name)) return "Solo se admiten archivos .zip.";
   if (file.size === 0)
-    return "This file is empty. Choose a non-empty ZIP archive.";
-  if (file.size > MAX_UPLOAD_BYTES) return "Choose a ZIP smaller than 25 MiB.";
+    return "El archivo está vacío. Selecciona un ZIP con contenido.";
+  if (file.size > MAX_UPLOAD_BYTES) return "Selecciona un ZIP de hasta 25 MiB.";
   return null;
 }
 export async function analyzeRepository(
@@ -19,7 +19,7 @@ export async function analyzeRepository(
   const base = process.env.NEXT_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, "");
   if (!base)
     throw new Error(
-      "The API URL is not configured. Set NEXT_PUBLIC_API_BASE_URL and restart the frontend.",
+      "La conexión con el servidor no está configurada. Configura NEXT_PUBLIC_API_BASE_URL y reinicia la aplicación.",
     );
   const form = new FormData();
   form.append("file", file);
@@ -33,14 +33,14 @@ export async function analyzeRepository(
   } catch (error) {
     if (signal?.aborted) throw error;
     throw new Error(
-      "Could not reach RepoInsight API. Check that the backend is running and try again.",
+      "No pudimos conectar con el servidor. Comprueba que la API esté en ejecución e intenta de nuevo.",
     );
   }
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     if (response.status === 413)
       throw new Error(
-        "The API rejected the upload size. Try a smaller ZIP archive.",
+        "El servidor rechazó el tamaño del archivo. Intenta con un ZIP más pequeño.",
       );
     const message =
       body &&
@@ -48,12 +48,12 @@ export async function analyzeRepository(
       "error" in body &&
       typeof body.error === "string"
         ? body.error
-        : `Analysis failed (HTTP ${response.status}). Please try again.`;
+        : `El análisis falló (HTTP ${response.status}). Intenta de nuevo.`;
     throw new Error(message);
   }
   if (!isRepositoryAnalysis(body))
     throw new Error(
-      "The API returned an unexpected analysis response. Check the backend version and try again.",
+      "El servidor devolvió una respuesta de análisis inesperada. Comprueba su versión e intenta de nuevo.",
     );
   return body;
 }

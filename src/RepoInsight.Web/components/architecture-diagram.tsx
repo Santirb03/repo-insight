@@ -5,6 +5,7 @@ let rendering = Promise.resolve();
 export function ArchitectureDiagram({ source }: { source: string }) {
   const host = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [zoom, setZoom] = useState(100);
   useEffect(() => {
     let disposed = false;
     rendering = rendering
@@ -35,11 +36,11 @@ export function ArchitectureDiagram({ source }: { source: string }) {
           );
           if (disposed || !host.current) return;
           const frame = document.createElement("iframe");
-          frame.title = "Repository architecture diagram";
+          frame.title = "Diagrama de arquitectura del repositorio";
           frame.setAttribute("sandbox", "");
           frame.setAttribute("referrerpolicy", "no-referrer");
           // No scripts, navigation privileges, remote assets, or parent DOM access.
-          frame.srcdoc = `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'"><style>body{margin:0;padding:24px;background:#fafbf9}svg{min-width:640px;width:100%;height:auto;max-width:none!important}a{pointer-events:none}</style></head><body>${svg}</body></html>`;
+          frame.srcdoc = `<!doctype html><html lang="es"><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'"><style>body{margin:0;padding:24px;background:#fafbf9}svg{width:100%;height:auto;max-width:none!important}a{pointer-events:none}</style></head><body>${svg}</body></html>`;
           host.current.replaceChildren(frame);
           setState("ready");
         } catch {
@@ -56,20 +57,58 @@ export function ArchitectureDiagram({ source }: { source: string }) {
   }, [source]);
   return (
     <>
-      <div className="diagram-host" ref={host} />
+      <div
+        className="diagram-toolbar"
+        role="group"
+        aria-label="Controles del diagrama"
+      >
+        <button
+          aria-label="Alejar diagrama"
+          disabled={state !== "ready" || zoom <= 50}
+          onClick={() => setZoom((value) => Math.max(50, value - 25))}
+        >
+          −
+        </button>
+        <output aria-label="Nivel de zoom" aria-live="polite">
+          {zoom}%
+        </output>
+        <button
+          aria-label="Acercar diagrama"
+          disabled={state !== "ready" || zoom >= 300}
+          onClick={() => setZoom((value) => Math.min(300, value + 25))}
+        >
+          +
+        </button>
+        <button disabled={state !== "ready"} onClick={() => setZoom(100)}>
+          Restablecer
+        </button>
+        <p>Usa las barras de desplazamiento para recorrer el mapa.</p>
+      </div>
+      <div
+        className="diagram-viewport"
+        hidden={state !== "ready"}
+        tabIndex={0}
+        aria-label="Mapa de arquitectura desplazable"
+      >
+        <div
+          className="diagram-host"
+          style={{ width: `${zoom}%`, height: `${5.8 * zoom}px`, minWidth: 0 }}
+          ref={host}
+        />
+      </div>
       {state === "loading" && (
         <p role="status" className="empty-state">
-          Rendering architecture…
+          Preparando el diagrama…
         </p>
       )}
       {state === "error" && (
         <div role="alert" className="empty-state">
-          This diagram could not be rendered. You can still inspect the diagram
-          source below.
+          No pudimos dibujar este mapa. Los demás resultados siguen disponibles;
+          puedes consultar los componentes y el código del diagrama debajo.
         </div>
       )}
       <details className="diagram-source">
-        <summary>View Mermaid source</summary>
+        <summary>Ver código Mermaid (avanzado)</summary>
         <pre>{source}</pre>
       </details>
     </>

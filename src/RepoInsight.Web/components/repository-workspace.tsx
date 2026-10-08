@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { analyzeRepository, validateZip } from "../lib/api";
 import type { RepositoryAnalysis } from "../lib/contracts";
@@ -11,17 +10,20 @@ export function RepositoryWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const request = useRef<AbortController | null>(null);
-  const report = useRef<HTMLDivElement>(null);
+  const heading = useRef<HTMLDivElement>(null);
+  const previousResult = useRef(result);
   useEffect(() => () => request.current?.abort(), []);
   useEffect(() => {
-    if (result) report.current?.focus();
+    if (previousResult.current === result) return;
+    previousResult.current = result;
+    heading.current?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0 });
   }, [result]);
   function select(files: File[]) {
-    if (files.length === 0) return;
-    setResult(null);
+    if (!files.length) return;
     const validation =
       files.length !== 1
-        ? "Choose exactly one ZIP archive."
+        ? "Selecciona un solo archivo ZIP."
         : validateZip(files[0]);
     setError(validation);
     setFile(validation ? null : files[0]);
@@ -32,14 +34,15 @@ export function RepositoryWorkspace() {
     request.current = controller;
     setBusy(true);
     setError(null);
-    setResult(null);
     try {
       const analysis = await analyzeRepository(file, controller.signal);
       if (!controller.signal.aborted) setResult(analysis);
     } catch (e) {
       if (!controller.signal.aborted)
         setError(
-          e instanceof Error ? e.message : "Analysis failed. Please try again.",
+          e instanceof Error
+            ? e.message
+            : "No pudimos completar el análisis. Intenta de nuevo.",
         );
     } finally {
       if (request.current === controller) {
@@ -53,87 +56,118 @@ export function RepositoryWorkspace() {
     request.current = null;
     setBusy(false);
   }
+  function reset() {
+    setResult(null);
+    setFile(null);
+    setError(null);
+  }
   return (
     <>
+      <a className="skip-link" href="#workspace">
+        Ir al contenido
+      </a>
       <header className="site-header">
-        <Link className="brand" href="/" aria-label="RepoInsight home">
+        <span className="brand">
           <span className="brand-symbol" aria-hidden="true">
             ⌘
           </span>
           Repo<span>Insight</span>
-        </Link>
-        <span className="header-label">CODEBASE INTELLIGENCE</span>
-        <a className="header-link" href="#workspace">
-          Workspace <span aria-hidden="true">↗</span>
-        </a>
+        </span>
+        <span className="header-label">EXPLORA TU CÓDIGO</span>
+        {result && (
+          <button className="secondary-button" onClick={reset}>
+            Analizar otro repositorio
+          </button>
+        )}
       </header>
       <main id="workspace">
-        <div className={`intro-layout ${result ? "compact" : ""}`}>
-          <section className="intro">
-            <div className="eyebrow">
-              <span className="status-dot" /> FROM SOURCE TO UNDERSTANDING
-            </div>
-            <h1>
-              Understand a<br />
-              codebase in <em>seconds.</em>
-            </h1>
-            <p className="intro-description">
-              See the stack. Trace the architecture. Find what matters.
-              <br className="desktop-break" /> Turn a repository ZIP into a
-              clear, connected overview.
-            </p>
-            <div className="feature-row">
-              <span>
-                01 <b>Technologies</b>
-              </span>
-              <span>
-                02 <b>Architecture</b>
-              </span>
-              <span>
-                03 <b>Insights</b>
-              </span>
-            </div>
-            <p className="intro-note">One upload. A clearer picture.</p>
-          </section>
-          <div>
-            <UploadPanel
-              file={file}
-              busy={busy}
-              onSelect={select}
-              onAnalyze={analyze}
-              onCancel={cancel}
-            />
-            {error && (
-              <div className="error-message" role="alert">
-                <strong>Unable to analyze</strong>
-                <p>{error}</p>
-              </div>
-            )}
-          </div>
-        </div>
-        {result ? (
-          <div ref={report} tabIndex={-1} className="report-focus">
+        <div ref={heading} tabIndex={-1} className="report-focus">
+          {result ? (
             <AnalysisDashboard
               analysis={result}
-              fileName={file?.name ?? "Repository"}
+              fileName={file?.name ?? "Repositorio"}
             />
-          </div>
-        ) : (
-          <section className="how-it-works">
-            <div>
-              <span className="eyebrow">LESS GUESSWORK. MORE CONTEXT.</span>
-              <h2>Your codebase, made legible.</h2>
-            </div>
-            <p>
-              Explore detected technologies, evidence-backed findings, and the
-              relationships between your application components in one place.
-            </p>
-          </section>
-        )}
+          ) : (
+            <>
+              <section className="welcome">
+                <span className="eyebrow">DE CÓDIGO A CONTEXTO</span>
+                <h1>
+                  Entiende tu proyecto.
+                  <br />
+                  <em>Encuentra por dónde empezar.</em>
+                </h1>
+                <p>
+                  Sube un repositorio y explora sus tecnologías, componentes y
+                  oportunidades de mejora en un solo lugar.
+                </p>
+              </section>
+              <div className="upload-layout">
+                <div>
+                  <UploadPanel
+                    file={file}
+                    busy={busy}
+                    onSelect={select}
+                    onAnalyze={analyze}
+                    onCancel={cancel}
+                  />
+                  {error && (
+                    <div className="error-message" role="alert">
+                      <strong>No se pudo analizar el archivo</strong>
+                      <p>{error}</p>
+                    </div>
+                  )}
+                </div>
+                <aside className="upload-guide">
+                  <h2>Cualquier proyecto, un punto de partida.</h2>
+                  <p>
+                    Puedes subir un ZIP sin importar su lenguaje o framework.
+                    Los resultados dependen de las tecnologías y patrones que
+                    reconozcamos.
+                  </p>
+                  <ol>
+                    <li>
+                      <strong>Descubre qué utiliza</strong>
+                      <span>
+                        Lenguajes, frameworks y herramientas detectados.
+                      </span>
+                    </li>
+                    <li>
+                      <strong>Explora cómo se organiza</strong>
+                      <span>
+                        Componentes y relaciones cuando hay un analizador
+                        compatible.
+                      </span>
+                    </li>
+                    <li>
+                      <strong>Decide qué revisar</strong>
+                      <span>
+                        Hallazgos por prioridad y evidencia para verificarlos.
+                      </span>
+                    </li>
+                  </ol>
+                  <details>
+                    <summary>¿Qué debo incluir en el ZIP?</summary>
+                    <p>
+                      Incluye código fuente, manifiestos y configuración.
+                      Excluye dependencias instaladas, compilaciones, archivos
+                      .env y credenciales. No necesitas ejecutar el proyecto.
+                    </p>
+                  </details>
+                  <p className="coverage-note">
+                    Arquitectura detallada disponible para NestJS y ASP.NET
+                    Core. No es un requisito para subir tu proyecto.
+                  </p>
+                </aside>
+              </div>
+            </>
+          )}
+        </div>
       </main>
       <footer>
         <span>RepoInsight</span>
-        <span>Built for the people who build software.</span>
+        <span>
+          Resultados para orientar tu revisión, no una auditoría completa.
+        </span>
       </footer>
     </>
   );

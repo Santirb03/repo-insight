@@ -26,6 +26,6 @@ it("announces loading and offers cancellation", () => {
     <UploadPanel {...actions} file={new File(["zip"], "repo.zip")} busy />,
   );
   expect(markup).toContain('role="status"');
-  expect(markup).toContain("Cancel analysis");
+  expect(markup).toContain("Cancelar análisis");
   expect(markup).toContain('class="primary-button" disabled=""');
 });

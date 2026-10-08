@@ -1,50 +1,24 @@
+"use client";
+import { useRef, useState, type KeyboardEvent } from "react";
+import type { RepositoryAnalysis } from "../lib/contracts";
 import {
-  categories,
-  severities,
-  type RepositoryAnalysis,
-} from "../lib/contracts";
-import { categoryLabels, severityPresentation } from "../lib/presentation";
-import { ArchitectureDiagram } from "./architecture-diagram";
-function Evidence({ items }: { items: string[] }) {
-  return (
-    items.length > 0 && (
-      <details className="evidence">
-        <summary>Evidence · {items.length}</summary>
-        <ul>
-          {items.map((item, i) => (
-            <li key={i}>
-              <code>{item}</code>
-            </li>
-          ))}
-        </ul>
-      </details>
-    )
-  );
-}
-function NarrativeList({
-  title,
-  items,
-  tone,
-}: {
-  title: string;
-  items: string[];
-  tone: string;
-}) {
-  return (
-    <div className={`narrative-list ${tone}`}>
-      <h3>{title}</h3>
-      {items.length ? (
-        <ul>
-          {items.map((item, i) => (
-            <li key={i}>{item}</li>
-          ))}
-        </ul>
-      ) : (
-        <p className="muted">None reported.</p>
-      )}
-    </div>
-  );
-}
+  architectureCoverage,
+  prioritizedFindings,
+  severityPresentation,
+} from "../lib/presentation";
+import {
+  ArchitectureView,
+  FindingsView,
+  TechnologiesView,
+  NarrativeList,
+} from "./analysis-sections";
+const tabs = [
+  { id: "summary", label: "Resumen" },
+  { id: "architecture", label: "Arquitectura" },
+  { id: "technologies", label: "Tecnologías" },
+  { id: "findings", label: "Hallazgos" },
+] as const;
+type Tab = (typeof tabs)[number]["id"];
 export function AnalysisDashboard({
   analysis,
   fileName,
@@ -52,152 +26,231 @@ export function AnalysisDashboard({
   analysis: RepositoryAnalysis;
   fileName: string;
 }) {
+  const [tab, setTab] = useState<Tab>("summary");
+  const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const technologies = analysis.technologies.technologies;
-  const { architecture, diagnostics, narrative } = analysis;
+  const findings = prioritizedFindings(analysis.diagnostics);
+  const priorityCount = findings.filter(
+    (f) => f.severity === "High" || f.severity === "Medium",
+  ).length;
+  const coverage = architectureCoverage(analysis);
+  const stack = technologies.filter((t) =>
+    ["Language", "Framework", "Database"].includes(t.category),
+  );
+  function navigate(next: Tab) {
+    setTab(next);
+    buttons.current[tabs.findIndex((t) => t.id === next)]?.focus();
+  }
+  function keyboard(e: KeyboardEvent, index: number) {
+    let next = index;
+    if (e.key === "ArrowRight") next = (index + 1) % tabs.length;
+    else if (e.key === "ArrowLeft")
+      next = (index + tabs.length - 1) % tabs.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = tabs.length - 1;
+    else return;
+    e.preventDefault();
+    navigate(tabs[next].id);
+  }
   return (
     <div className="dashboard">
       <div className="report-heading">
         <div>
-          <span className="eyebrow">ANALYSIS COMPLETE</span>
-          <h2>{fileName}</h2>
-        </div>
-        <span className="complete-badge">
-          <span className="status-dot" /> Ready to explore
-        </span>
-      </div>
-      <nav className="report-nav" aria-label="Analysis sections">
-        <a href="#summary">Summary</a>
-        <a href="#technologies">Technologies</a>
-        <a href="#diagnostics">Diagnostics</a>
-        <a href="#architecture">Architecture</a>
-      </nav>
-      <section className="metrics" aria-label="Overview">
-        {[
-          [technologies.length, "Technologies"],
-          [architecture.nodes.length, "Components"],
-          [architecture.edges.length, "Relationships"],
-          [diagnostics.length, "Findings"],
-        ].map(([value, label]) => (
-          <div className="metric" key={label}>
-            <span>{label}</span>
-            <strong>{value}</strong>
-          </div>
-        ))}
-      </section>
-      <section className="report-section" id="summary">
-        <div className="section-heading">
-          <span className="section-index">01</span>
-          <h2>Repository summary</h2>
-        </div>
-        <p className="summary-text">
-          {narrative.summary || "No summary was returned."}
-        </p>
-        <div className="narrative-grid">
-          <NarrativeList
-            title="Strengths"
-            items={narrative.strengths}
-            tone="strengths"
-          />
-          <NarrativeList title="Risks" items={narrative.risks} tone="risks" />
-          <NarrativeList
-            title="Recommendations"
-            items={narrative.recommendations}
-            tone="recommendations"
-          />
-        </div>
-      </section>
-      <section className="report-section" id="technologies">
-        <div className="section-heading">
-          <span className="section-index">02</span>
-          <h2>Technology stack</h2>
-          <span className="count">{technologies.length}</span>
-        </div>
-        {technologies.length === 0 && (
-          <p className="empty-state">No supported technologies detected.</p>
-        )}
-        <div className="technology-groups">
-          {categories.map((category) => {
-            const items = technologies.filter((t) => t.category === category);
-            return (
-              items.length > 0 && (
-                <div className="technology-group" key={category}>
-                  <h3>{categoryLabels[category] ?? category}</h3>
-                  <div className="technology-items">
-                    {items.map((tech, i) => (
-                      <article className="technology" key={`${tech.name}-${i}`}>
-                        <div>
-                          <strong>{tech.name}</strong>
-                          <span className="confidence">
-                            {tech.confidence} confidence
-                          </span>
-                        </div>
-                        <Evidence items={tech.evidence} />
-                      </article>
-                    ))}
-                  </div>
-                </div>
-              )
-            );
-          })}
-        </div>
-      </section>
-      <section className="report-section" id="diagnostics">
-        <div className="section-heading">
-          <span className="section-index">03</span>
-          <h2>Diagnostics</h2>
-          <span className="count">{diagnostics.length}</span>
-        </div>
-        <p className="section-description">
-          Evidence-backed observations to guide your next review.
-        </p>
-        {diagnostics.length === 0 && (
-          <p className="empty-state">
-            No findings reported by the current diagnostic rules.
+          <span className="eyebrow">TU ANÁLISIS ESTÁ LISTO</span>
+          <h1>{fileName}</h1>
+          <p>
+            Empieza por el resumen. Abre cada sección cuando necesites más
+            detalle.
           </p>
-        )}
-        <div className="diagnostics-grid">
-          {severities
-            .flatMap((severity) =>
-              diagnostics.filter((d) => d.severity === severity),
-            )
-            .map((finding, i) => (
-              <article className="diagnostic" key={`${finding.code}-${i}`}>
-                <div className="diagnostic-meta">
-                  <span
-                    className={`severity ${severityPresentation[finding.severity].className}`}
+        </div>
+        <span className="complete-badge">✓ Análisis completado</span>
+      </div>
+      <div
+        className="report-tabs"
+        role="tablist"
+        aria-label="Secciones del análisis"
+      >
+        {tabs.map((item, index) => (
+          <button
+            key={item.id}
+            ref={(element) => {
+              buttons.current[index] = element;
+            }}
+            role="tab"
+            id={`tab-${item.id}`}
+            aria-selected={tab === item.id}
+            aria-controls={`panel-${item.id}`}
+            tabIndex={tab === item.id ? 0 : -1}
+            onKeyDown={(e) => keyboard(e, index)}
+            onClick={() => setTab(item.id)}
+          >
+            {item.label}
+            {item.id === "findings" && (
+              <span className="count">{findings.length}</span>
+            )}
+          </button>
+        ))}
+      </div>
+      {tabs.map((item) => (
+        <div
+          key={item.id}
+          role="tabpanel"
+          id={`panel-${item.id}`}
+          aria-labelledby={`tab-${item.id}`}
+          hidden={tab !== item.id}
+          tabIndex={0}
+          className="tab-panel"
+        >
+          {tab === item.id &&
+            (item.id === "summary" ? (
+              <>
+                <section className="overview-callout">
+                  <div>
+                    <span className="eyebrow">POR DÓNDE EMPEZAR</span>
+                    <h2>
+                      {priorityCount
+                        ? `${priorityCount} hallazgo${priorityCount === 1 ? " requiere" : "s requieren"} atención prioritaria`
+                        : findings.length
+                          ? "Hay oportunidades de mejora para revisar"
+                          : "Explora lo que encontramos"}
+                    </h2>
+                    <p>
+                      {priorityCount
+                        ? "Revisa primero las observaciones de prioridad alta y media. Confirma su evidencia antes de cambiar tu código."
+                        : findings.length
+                          ? "Las reglas actuales encontraron observaciones de prioridad baja o informativa. No son errores de ejecución."
+                          : "No se reportaron hallazgos con las reglas actuales. Esto no garantiza que el proyecto esté libre de problemas."}
+                    </p>
+                  </div>
+                  <button
+                    className="primary-button"
+                    onClick={() =>
+                      navigate(findings.length ? "findings" : "technologies")
+                    }
                   >
-                    {finding.severity}
-                  </span>
-                  <code>{finding.code}</code>
+                    {findings.length
+                      ? "Revisar hallazgos"
+                      : "Explorar tecnologías"}{" "}
+                    →
+                  </button>
+                </section>
+                <section className="metrics" aria-label="Resultados detectados">
+                  {[
+                    [
+                      technologies.length,
+                      "Tecnologías",
+                      "Lenguajes y herramientas",
+                    ],
+                    [
+                      analysis.architecture.nodes.length,
+                      "Componentes",
+                      "Reconocidos por los analizadores",
+                    ],
+                    [
+                      analysis.architecture.edges.length,
+                      "Relaciones",
+                      "Con evidencia en el código",
+                    ],
+                  ].map(([value, label, hint]) => (
+                    <div className="metric" key={label}>
+                      <strong>{value}</strong>
+                      <div>
+                        <span>{label}</span>
+                        <small>{hint}</small>
+                      </div>
+                    </div>
+                  ))}
+                </section>
+                <div className="summary-layout">
+                  <section className="report-section">
+                    <h2>Panorama del repositorio</h2>
+                    <p className="summary-text">
+                      {analysis.narrative.summary ||
+                        "La API no devolvió un resumen para este repositorio."}
+                    </p>
+                    <p className="caption">
+                      El texto del análisis se muestra en el idioma recibido del
+                      servidor.
+                    </p>
+                    <div className="stack-chips">
+                      {stack.slice(0, 8).map((t, i) => (
+                        <span key={`${t.name}-${i}`}>{t.name}</span>
+                      ))}
+                    </div>
+                    <button
+                      className="text-button"
+                      onClick={() => navigate("technologies")}
+                    >
+                      Ver las {technologies.length} tecnologías →
+                    </button>
+                  </section>
+                  <aside className="report-section coverage-card">
+                    <span className="eyebrow">ALCANCE DEL ANÁLISIS</span>
+                    <h2>{coverage.title}</h2>
+                    <p>{coverage.description}</p>
+                    <button
+                      className="text-button"
+                      onClick={() => navigate("architecture")}
+                    >
+                      Explorar arquitectura →
+                    </button>
+                  </aside>
                 </div>
-                <h3>{finding.title}</h3>
-                <p>{finding.description}</p>
-                <Evidence items={finding.evidence} />
-              </article>
+                {findings.length > 0 && (
+                  <section className="report-section">
+                    <div className="section-heading">
+                      <h2>Primero, revisa esto</h2>
+                      <button
+                        className="text-button"
+                        onClick={() => navigate("findings")}
+                      >
+                        Ver todos ({findings.length}) →
+                      </button>
+                    </div>
+                    <div className="priority-list">
+                      {findings.slice(0, 3).map((f, i) => (
+                        <div key={`${f.code}-${i}`}>
+                          <span
+                            className={`severity ${severityPresentation[f.severity].className}`}
+                          >
+                            {severityPresentation[f.severity].label}
+                          </span>
+                          <h3>{f.title}</h3>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+                <section className="report-section">
+                  <h2>Lo que dice el análisis</h2>
+                  <div className="narrative-grid">
+                    <NarrativeList
+                      title="Fortalezas"
+                      items={analysis.narrative.strengths}
+                      tone="strengths"
+                    />
+                    <NarrativeList
+                      title="Riesgos"
+                      items={analysis.narrative.risks}
+                      tone="risks"
+                    />
+                    <NarrativeList
+                      title="Recomendaciones"
+                      items={analysis.narrative.recommendations}
+                      tone="recommendations"
+                    />
+                  </div>
+                </section>
+              </>
+            ) : item.id === "architecture" ? (
+              <ArchitectureView analysis={analysis} />
+            ) : item.id === "technologies" ? (
+              <TechnologiesView technologies={technologies} />
+            ) : (
+              <FindingsView findings={findings} />
             ))}
         </div>
-      </section>
-      <section className="report-section" id="architecture">
-        <div className="section-heading">
-          <span className="section-index">04</span>
-          <h2>Architecture</h2>
-          <span className="tag">DEPENDENCY MAP</span>
-        </div>
-        <p className="section-description">
-          Components and relationships discovered by the backend. Scroll inside
-          the diagram to explore.
-        </p>
-        {architecture.nodes.length === 0 ? (
-          <p className="empty-state">
-            No supported architecture components detected.
-          </p>
-        ) : (
-          <ArchitectureDiagram
-            key={analysis.mermaid}
-            source={analysis.mermaid}
-          />
-        )}
-      </section>
+      ))}
     </div>
   );
 }

@@ -37,8 +37,8 @@ Tests cover ZIP validation, multipart requests, response shape, API errors, canc
 ## Manual upload check
 
 1. Start both applications and select or drop a ZIP containing a supported C# or NestJS repository (under 25 MiB).
-2. Click **Analyze Repository**. Verify loading, real summary, technology evidence, diagnostics, counts and architecture diagram.
-3. Expand evidence and Mermaid source. Check a narrow browser width and keyboard navigation.
+2. Click **Analizar repositorio**. The upload form is replaced by a summary with suggested next steps, detected counts and the original API narrative.
+3. Explore **Arquitectura**, **Tecnologías** and **Hallazgos**. Check diagram zoom/reset and scrolling, severity filters, collapsed evidence, narrow browser widths and keyboard tabs (Left/Right, Home/End). Use **Analizar otro repositorio** to return to a fresh upload.
 4. Try a non-ZIP, an empty ZIP file, multiple dropped files, and a corrupt archive. Client validation checks name/size; archive validation remains the backend's responsibility.
 5. Stop the API and retry to check the network error. Restart it and retry successfully. Cancel a running analysis to return to the upload form.
 
@@ -50,3 +50,4 @@ Tests cover ZIP validation, multipart requests, response shape, API errors, canc
 - Browser upload cap: 25 MiB (below default Kestrel request limits including multipart overhead).
 - Mermaid uses strict rendering, rejects configuration directives and renders the returned SVG inside a sandboxed iframe with a restrictive CSP. No callbacks are bound. Diagram errors leave the report and source accessible.
 - The browser never executes uploaded repository code. There is no authentication, persistence, or analysis history.
+- The interface is in Spanish; narrative and diagnostic text retain the language returned by the API. ZIP acceptance is independent of language/framework. Technology discovery supports multiple stacks; detailed architecture currently covers NestJS and ASP.NET Core. Empty graphs are described as a detection limitation, never as a repository error. The API has no explicit coverage field, so the client does not claim a specific analyzer ran.
