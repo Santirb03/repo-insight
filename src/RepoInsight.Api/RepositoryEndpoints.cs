@@ -16,6 +16,7 @@ public static class RepositoryEndpoints
         services.AddScoped<IArchitectureAnalyzer, NestJsArchitectureAnalyzer>();
         services.AddScoped<IArchitectureAnalyzer, AspNetArchitectureAnalyzer>();
         services.AddScoped<IArchitectureAnalyzer, ReactArchitectureAnalyzer>();
+        services.AddScoped<IArchitectureAnalyzer, ExpressArchitectureAnalyzer>();
 
         services.AddScoped<ArchitectureAnalyzerSelector>();
 

@@ -17,7 +17,13 @@ internal static class ManifestDependencies
             if (document.RootElement.ValueKind != JsonValueKind.Object) yield break;
             foreach (var section in new[] { "dependencies", "devDependencies", "peerDependencies", "optionalDependencies" })
                 if (document.RootElement.TryGetProperty(section, out var dependencies) && dependencies.ValueKind == JsonValueKind.Object)
-                    foreach (var property in dependencies.EnumerateObject()) yield return ("npm", property.Name);
+                    foreach (var property in dependencies.EnumerateObject())
+                    {
+                        if (property.Name != "express" || property.Value.ValueKind != JsonValueKind.String || property.Value.GetString() is not { } substituted || !substituted.StartsWith("npm:", StringComparison.Ordinal) || substituted.StartsWith("npm:express@", StringComparison.Ordinal))
+                            yield return ("npm", property.Name);
+                        if (property.Value.ValueKind == JsonValueKind.String && property.Value.GetString() is { } alias && alias.StartsWith("npm:express@", StringComparison.Ordinal))
+                            yield return ("npm", "express");
+                    }
         }
         else if (name.EndsWith(".csproj"))
         {

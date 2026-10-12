@@ -42,6 +42,10 @@ export const nodeTypes = [
   "ApiClient",
   "FrontendService",
   "Utility",
+  "ExpressApplication",
+  "Router",
+  "HttpRoute",
+  "ErrorMiddleware",
 ] as const;
 export const relationships = [
   "DependsOn",

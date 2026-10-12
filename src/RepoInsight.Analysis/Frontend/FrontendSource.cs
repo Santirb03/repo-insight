@@ -15,6 +15,7 @@ internal sealed class FrontendSource
     internal bool Client { get; private set; }
     internal string Path { get; }
     internal int TokenCount => syntax.Tokens.Length;
+    internal FrontendSyntax Syntax => syntax;
     private readonly FrontendSyntax syntax;
     private Token[] Tokens => syntax.Tokens;
     private bool Is(int i, string text) => syntax.Is(i, text);

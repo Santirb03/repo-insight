@@ -9,5 +9,6 @@ public enum ArchitectureNodeType
     Repository, DbContext, Middleware, HostedService, AuthenticationHandler, AuthorizationHandler, Bootstrap,
     Interface, ExternalService,
     Component, Hook, Context, Provider, Page, Layout, Loading, ErrorBoundary,
-    RouteHandler, ServerAction, ApiClient, FrontendService, Utility
+    RouteHandler, ServerAction, ApiClient, FrontendService, Utility,
+    ExpressApplication, Router, HttpRoute, ErrorMiddleware
 }

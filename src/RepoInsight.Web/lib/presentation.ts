@@ -37,11 +37,11 @@ export function architectureCoverage(analysis: RepositoryAnalysis) {
     ? {
         title: "Arquitectura detectada",
         description:
-          "El mapa representa los componentes reconocidos, no necesariamente todo el proyecto. La detección detallada actual cubre React, Next.js, NestJS y ASP.NET Core.",
+          "El mapa representa los componentes reconocidos, no necesariamente todo el proyecto. La detección detallada actual cubre React, Next.js, Express, NestJS y ASP.NET Core.",
       }
     : {
         title: "Sin mapa de arquitectura",
         description:
-          "No se reconocieron componentes con las reglas actuales. La detección detallada cubre React, Next.js, NestJS y ASP.NET Core; otros proyectos conservan sus resultados disponibles. Esto no indica un error en tu código.",
+          "No se reconocieron componentes con las reglas actuales. La detección detallada cubre React, Next.js, Express, NestJS y ASP.NET Core; otros proyectos conservan sus resultados disponibles. Esto no indica un error en tu código.",
       };
 }

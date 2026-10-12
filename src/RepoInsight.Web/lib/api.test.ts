@@ -151,7 +151,7 @@ it("accepts an empty repository response", () =>
     }),
   ).toBe(true));
 it("accepts the additive frontend architecture roles returned by the API", () => {
-  const roles = ["Component", "Hook", "Context", "Provider", "Page", "Layout", "Loading", "ErrorBoundary", "RouteHandler", "ServerAction", "ApiClient", "FrontendService", "Utility"];
+  const roles = ["Component", "Hook", "Context", "Provider", "Page", "Layout", "Loading", "ErrorBoundary", "RouteHandler", "ServerAction", "ApiClient", "FrontendService", "Utility", "ExpressApplication", "Router", "HttpRoute", "ErrorMiddleware"];
   for (const nodeType of roles) {
     expect(isRepositoryAnalysis({
       ...response,

@@ -12,7 +12,7 @@ internal sealed class FrontendRepository
     private readonly string root;
     internal HashSet<string> Paths { get; }
     internal Dictionary<string, Package> Packages { get; } = new(StringComparer.Ordinal);
-    internal sealed record Package(string Directory, string Name, bool React, bool Next);
+    internal sealed record Package(string Directory, string Name, bool React, bool Next, IReadOnlyDictionary<string, string> Dependencies);
 
     internal FrontendRepository(string repositoryPath, RepositoryScan scan)
     {
@@ -31,6 +31,7 @@ internal sealed class FrontendRepository
             var directory = DirectoryOf(path);
             var react = false;
             var next = false;
+            var declared = new Dictionary<string, string>(StringComparer.Ordinal);
             var name = directory.Length == 0 ? "Frontend" : directory;
             var text = Read(path);
             if (text is not null)
@@ -43,6 +44,8 @@ internal sealed class FrontendRepository
                     foreach (var section in new[] { "dependencies", "devDependencies", "peerDependencies", "optionalDependencies" })
                         if (manifest.TryGetProperty(section, out var deps) && deps.ValueKind == JsonValueKind.Object)
                         {
+                            foreach (var dependency in deps.EnumerateObject())
+                                if (dependency.Value.ValueKind == JsonValueKind.String) declared[dependency.Name] = dependency.Value.GetString() ?? "";
                             react |= deps.TryGetProperty("react", out var value) && value.ValueKind == JsonValueKind.String;
                             next |= deps.TryGetProperty("next", out value) && value.ValueKind == JsonValueKind.String;
                         }
@@ -50,7 +53,7 @@ internal sealed class FrontendRepository
                 catch (JsonException) { /* Malformed manifests still establish package isolation. */ }
                 catch (InvalidOperationException) { /* Non-object manifests do not declare dependencies. */ }
             next |= nextDirectories.Contains(directory);
-            Packages[directory] = new(directory, name, react || next, next);
+            Packages[directory] = new(directory, name, react || next, next, declared);
         }
     }
 
@@ -97,7 +100,7 @@ internal sealed class FrontendRepository
     internal static JsonDocument ParseJson(string text) => JsonDocument.Parse(text,
         new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip, MaxDepth = 64 });
     internal static string DirectoryOf(string path) => path.LastIndexOf('/') is var i && i >= 0 ? path[..i] : "";
-    internal static bool IsSource(string p) => Path.GetExtension(p) is ".tsx" or ".ts" or ".jsx" or ".js" or ".mjs" or ".cjs";
+    internal static bool IsSource(string p) => Path.GetExtension(p) is ".tsx" or ".ts" or ".jsx" or ".js" or ".mjs" or ".cjs" or ".mts" or ".cts";
     internal static bool IsTestOrGenerated(string p) => p.EndsWith(".d.ts", StringComparison.Ordinal) || p.Contains(".test.", StringComparison.Ordinal) ||
         p.Contains(".spec.", StringComparison.Ordinal) || p.Contains(".stories.", StringComparison.Ordinal) || p.Contains(".generated.", StringComparison.Ordinal) ||
         p.Split('/').Any(part => part is "__tests__" or "__mocks__");

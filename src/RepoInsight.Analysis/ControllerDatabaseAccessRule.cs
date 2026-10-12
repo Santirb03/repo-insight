@@ -35,7 +35,8 @@ public sealed class ControllerDatabaseAccessRule
                 continue;
             }
 
-            if (sourceNode.NodeType is not
+            var expressHandler = sourceNode.NodeType == ArchitectureNodeType.RouteHandler && sourceNode.Id.StartsWith("express:", StringComparison.Ordinal);
+            if (!expressHandler && sourceNode.NodeType is not
                 ArchitectureNodeType.Controller and not
                 ArchitectureNodeType.WebhookController)
             {
@@ -45,7 +46,7 @@ public sealed class ControllerDatabaseAccessRule
             findings.Add(
                 new DiagnosticFinding(
                     Code: "ARCH001",
-                    Title: "Controller accesses database directly",
+                    Title: expressHandler ? "HTTP handler accesses database directly" : "Controller accesses database directly",
                     Description:
                         $"{sourceNode.DisplayName} accesses " +
                         $"{targetNode.DisplayName} directly. " +

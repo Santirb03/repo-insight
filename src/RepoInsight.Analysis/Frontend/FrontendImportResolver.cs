@@ -41,9 +41,9 @@ internal sealed class FrontendImportResolver(FrontendRepository repository)
                     foreach (var suffix in new[] { ".ts", ".tsx" }) if (repository.Paths.Contains(stem[..^3] + suffix)) candidates.Add(stem[..^3] + suffix);
                 return;
             }
-            var direct = new[] { ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs" }.Select(e => stem + e).Where(repository.Paths.Contains).ToArray();
+            var direct = new[] { ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts" }.Select(e => stem + e).Where(repository.Paths.Contains).ToArray();
             if (direct.Length > 0) { candidates.UnionWith(direct); return; }
-            foreach (var extension in new[] { ".ts", ".tsx", ".js", ".jsx" })
+            foreach (var extension in new[] { ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts" })
                 if (repository.Paths.Contains(stem + "/index" + extension)) candidates.Add(stem + "/index" + extension);
         }
     }
