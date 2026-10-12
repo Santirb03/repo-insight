@@ -13,19 +13,32 @@ public sealed class ArchitectureDiagramSimplifier
         ArchitectureNodeType.ExternalService
     ];
 
+    private static readonly HashSet<ArchitectureNodeType> FrontendTypes =
+    [
+        ArchitectureNodeType.Component, ArchitectureNodeType.Hook, ArchitectureNodeType.Context,
+        ArchitectureNodeType.Provider, ArchitectureNodeType.Page, ArchitectureNodeType.Layout,
+        ArchitectureNodeType.Loading, ArchitectureNodeType.ErrorBoundary, ArchitectureNodeType.RouteHandler,
+        ArchitectureNodeType.ServerAction, ArchitectureNodeType.ApiClient, ArchitectureNodeType.FrontendService
+    ];
+
     public ArchitectureGraph Simplify(ArchitectureGraph graph)
     {
         ArgumentNullException.ThrowIfNull(graph);
 
         var nodes = graph.Nodes
-            .Where(node => IncludedNodeTypes.Contains(node.NodeType))
+            .Where(node => IncludedNodeTypes.Contains(node.NodeType) || FrontendTypes.Contains(node.NodeType) ||
+                node.NodeType == ArchitectureNodeType.Middleware && node.Id.StartsWith("react:", StringComparison.Ordinal))
             .OrderBy(node => node.Id, StringComparer.Ordinal)
             .ToArray();
 
-        var nodeIds = nodes
-            .Select(node => node.Id)
-            .ToHashSet(StringComparer.Ordinal);
-
+        var frontendIds = nodes.Where(n => n.Id.StartsWith("react:", StringComparison.Ordinal) || FrontendTypes.Contains(n.NodeType))
+            .Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
+        // Source modules and utilities remain in the full graph; visual frontend nodes are capped.
+        var keptFrontendIds = nodes.Where(n => frontendIds.Contains(n.Id))
+            .OrderBy(n => n.NodeType is ArchitectureNodeType.Page or ArchitectureNodeType.Layout or ArchitectureNodeType.RouteHandler ? 0 : 1)
+            .ThenBy(n => n.Id, StringComparer.Ordinal).Take(80).Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
+        nodes = nodes.Where(n => !frontendIds.Contains(n.Id) || keptFrontendIds.Contains(n.Id)).ToArray();
+        var nodeIds = nodes.Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
         var edges = graph.Edges
             .Where(edge =>
                 nodeIds.Contains(edge.SourceNodeId) &&
@@ -35,7 +48,8 @@ public sealed class ArchitectureDiagramSimplifier
                     ArchitectureRelationshipType.Injects or
                     ArchitectureRelationshipType.Implements or
                     ArchitectureRelationshipType.UsesDatabase or
-                    ArchitectureRelationshipType.UsesExternalService)
+                    ArchitectureRelationshipType.UsesExternalService ||
+                edge.RelationshipType == ArchitectureRelationshipType.DependsOn && frontendIds.Contains(edge.SourceNodeId))
             .GroupBy(edge => new
             {
                 edge.SourceNodeId,

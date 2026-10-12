@@ -150,6 +150,15 @@ it("accepts an empty repository response", () =>
       diagnostics: [],
     }),
   ).toBe(true));
+it("accepts the additive frontend architecture roles returned by the API", () => {
+  const roles = ["Component", "Hook", "Context", "Provider", "Page", "Layout", "Loading", "ErrorBoundary", "RouteHandler", "ServerAction", "ApiClient", "FrontendService", "Utility"];
+  for (const nodeType of roles) {
+    expect(isRepositoryAnalysis({
+      ...response,
+      architecture: { nodes: [{ ...response.architecture.nodes[0], nodeType }], edges: [] },
+    })).toBe(true);
+  }
+});
 it("provides distinct labeled severity styles", () => {
   expect(
     new Set(severities.map((s) => severityPresentation[s].className)).size,

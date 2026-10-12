@@ -19,7 +19,7 @@ public sealed class ArchitectureAnalyzerSelector(
 
         return analyzers
             .Where(analyzer =>
-                detectedNames.Contains(analyzer.TechnologyName))
+                analyzer.SupportedTechnologies.Any(detectedNames.Contains))
             .OrderBy(analyzer => analyzer.TechnologyName, StringComparer.Ordinal)
             .ToArray();
     }
